@@ -2,79 +2,50 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Продвинутый локальный генератор текста</title>
+<title>Умный генератор текста на русском</title>
 <style>
   body { font-family: Arial; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 50px; }
   textarea { width: 400px; height: 100px; padding: 10px; margin-bottom: 10px; }
-  select, button { padding: 10px 20px; margin-bottom: 10px; cursor: pointer; }
-  #result { margin-top: 20px; width: 400px; min-height: 200px; background: white; padding: 10px; border-radius: 5px; white-space: pre-wrap; }
+  input, button { padding: 8px; margin-bottom: 10px; }
+  #result { margin-top: 20px; width: 400px; min-height: 150px; background: white; padding: 10px; border-radius: 5px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 
-<h1>Продвинутый локальный генератор текста</h1>
+<h1>Умный генератор текста на русском</h1>
 <textarea id="prompt" placeholder="Введите начало текста..."></textarea>
-<select id="genre">
-  <option value="fairy">Сказка</option>
-  <option value="news">Новость</option>
-  <option value="story">Рассказ</option>
-</select>
+<br>
+<label>Макс. длина слов: <input type="number" id="max_length" value="150"></label>
+<br>
+<label>Креативность (0.1–1.0): <input type="number" id="temperature" step="0.1" value="0.8"></label>
+<br>
 <button onclick="generateText()">Сгенерировать</button>
+
 <div id="result">Результат появится здесь...</div>
 
 <script>
-// Примеры текстов для обучения Markov Chain по жанрам
-const trainingTexts = {
-  fairy: `
-Однажды в далекой стране жил добрый дракон. Вокруг него был волшебный лес, полный чудес и сказочных существ. 
-Феи, эльфы и гномы дружили с драконом. Однажды он встретил маленькую девочку, которая потерялась в лесу. 
-Дракон помог ей найти дорогу домой, и с тех пор они стали лучшими друзьями. Вечерами они вместе наблюдали за звездами.
-`,
-  news: `
-Сегодня в городе произошло важное событие. Власти объявили о строительстве нового парка для жителей. 
-Планируется, что в парке будут игровые площадки, зоны для прогулок и спортивные секции. Жители города выразили радость и поддержку инициативе. 
-Открытие парка запланировано на следующий месяц, и ожидается большое количество посетителей.
-`,
-  story: `
-В один тихий вечер Илья шел по улице и заметил странный свет в окне старого дома. Он подошел ближе и увидел таинственную фигуру. 
-Фигура оказалась старым ученым, который показывал Илье свои удивительные изобретения. Они провели вместе несколько часов, обсуждая науку и жизнь. 
-Этот вечер стал началом необычной дружбы и множества приключений.
-`
-};
+async function generateText() {
+  const prompt = document.getElementById('prompt').value;
+  const maxLength = parseInt(document.getElementById('max_length').value);
+  const temperature = parseFloat(document.getElementById('temperature').value);
 
-// Построение Markov Chain по выбранному жанру
-function buildMarkov(text) {
-  const chain = {};
-  const words = text.split(/\s+/);
-  for (let i = 0; i < words.length - 1; i++) {
-    const word = words[i].replace(/[.,!?]/g, '').toLowerCase();
-    const next = words[i + 1];
-    if (!chain[word]) chain[word] = [];
-    chain[word].push(next);
-  }
-  return chain;
-}
-
-// Генерация текста
-function generateText() {
-  const prompt = document.getElementById('prompt').value.trim();
-  const genre = document.getElementById('genre').value;
   if (!prompt) return;
 
-  const chain = buildMarkov(trainingTexts[genre]);
-  const promptWords = prompt.split(/\s+/);
-  let lastWord = promptWords[promptWords.length - 1].toLowerCase();
-  let result = prompt;
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerText = "Генерируем...";
 
-  for (let i = 0; i < 80; i++) { // генерируем 80 слов
-    const nextWords = chain[lastWord];
-    if (!nextWords || nextWords.length === 0) break;
-    const next = nextWords[Math.floor(Math.random() * nextWords.length)];
-    result += (/[.,!?]$/.test(next) ? next : ' ' + next);
-    lastWord = next.replace(/[.,!?]/g, '').toLowerCase();
+  try {
+    const response = await fetch("http://localhost:8000/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: prompt, max_length: maxLength, temperature: temperature })
+    });
+    const data = await response.json();
+    resultDiv.innerText = data.generated_text;
+  } catch (error) {
+    console.error(error);
+    resultDiv.innerText = "Ошибка при генерации текста.";
   }
-
-  document.getElementById('result').innerText = result;
 }
 </script>
 

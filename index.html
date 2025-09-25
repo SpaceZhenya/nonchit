@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Локальный GPT-2 Генератор текста</title>
+  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 50px; }
+    textarea { width: 400px; height: 100px; padding: 10px; margin-bottom: 10px; }
+    button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    #result { margin-top: 20px; width: 400px; min-height: 150px; background: white; padding: 10px; border-radius: 5px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+<h1>Локальный GPT-2 Генератор текста</h1>
+<textarea id="prompt" placeholder="Введите начало текста..."></textarea>
+<button id="generateBtn">Сгенерировать</button>
+
+<div id="result">Результат появится здесь...</div>
+
+<script>
+let model, tokenizer;
+
+async function loadModel() {
+  document.getElementById('result').innerText = "Загрузка модели... Подождите.";
+  
+  // Загружаем GPT-2 модель для браузера
+  model = await window.transformers.AutoModelForCausalLM.from_pretrained('gpt2');
+  tokenizer = await window.transformers.AutoTokenizer.from_pretrained('gpt2');
+
+  document.getElementById('result').innerText = "Модель загружена. Введите текст и нажмите 'Сгенерировать'.";
+}
+
+// Генерация текста
+async function generateText() {
+  const prompt = document.getElementById('prompt').value;
+  if (!prompt) return;
+
+  document.getElementById('result').innerText = "Генерация...";
+
+  // Токенизируем
+  const inputs = await tokenizer.encode(prompt, { return_tensors: 'pt' });
+  
+  // Генерация
+  const output = await model.generate(inputs, {
+    max_length: inputs.shape[1] + 100,
+    temperature: 0.8,
+    do_sample: true,
+    top_p: 0.9
+  });
+
+  // Декодируем
+  const generatedText = await tokenizer.decode(output[0], { skip_special_tokens: true });
+  document.getElementById('result').innerText = generatedText;
+}
+
+document.getElementById('generateBtn').addEventListener('click', generateText);
+
+// Загружаем модель при старте страницы
+loadModel();
+</script>
+
+</body>
+</html>

@@ -1,72 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Assistant with SmolLM2</title>
-  <style>
-    body { font-family: sans-serif; width: 600px; margin: 20px auto; }
-    #chat { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 8px; }
-    .msg { margin: 4px 0; }
-    .user { color: blue; }
-    .bot { color: green; }
-    input, button { padding: 8px; font-size: 1rem; }
-  </style>
-  <script type="module">
-    import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js";
+<meta charset="UTF-8">
+<title>Mini Browser AI Assistant</title>
+<style>
+  body { font-family: sans-serif; width: 600px; margin: 20px auto; }
+  #chat { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 8px; }
+  .msg { margin: 4px 0; }
+  .user { color: blue; }
+  .bot { color: green; }
+  input, button { padding: 8px; font-size: 1rem; }
+</style>
+<script type="module">
+  import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js";
 
-    let chatDiv, inputEl;
-    let chatModel;
+  let chatDiv, inputEl, chatModel;
 
-    function log(message, who = "bot") {
-      const d = document.createElement("div");
-      d.textContent = (who === "user" ? "You: " : "AI: ") + message;
-      d.className = "msg " + who;
-      chatDiv.appendChild(d);
-      chatDiv.scrollTop = chatDiv.scrollHeight;
-    }
+  function log(message, who="bot"){
+    const d = document.createElement("div");
+    d.textContent = (who==="user" ? "You: " : "AI: ") + message;
+    d.className = "msg " + who;
+    chatDiv.appendChild(d);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+  }
 
-    async function setupModel() {
-      chatDiv = document.getElementById("chat");
-      inputEl = document.getElementById("input");
+  async function setupModel(){
+    chatDiv = document.getElementById("chat");
+    inputEl = document.getElementById("input");
 
-      // Load the instruction-tuned model (SmolLM2-135M-Instruct)
-      chatModel = await pipeline("text-generation", "HuggingFaceTB/SmolLM2-135M-Instruct", {
-        device: "webgpu",  // or fallback to “wasm” if GPU not available
-      });
+    // Tiny model that works in browser
+    chatModel = await pipeline("text-generation", "Xenova/distilgpt2");
+    log("Mini AI loaded! Type something.");
+  }
 
-      log("Model loaded! Ask me anything.");
-    }
+  async function sendMessage(){
+    const text = inputEl.value.trim();
+    if(!text) return;
+    log(text,"user");
+    inputEl.value="";
 
-    async function sendMessage() {
-      const userText = inputEl.value.trim();
-      if (!userText) return;
-      log(userText, "user");
-      inputEl.value = "";
+    // Wrap the prompt so it behaves like an assistant
+    const prompt = "You are a helpful assistant.\nUser: " + text + "\nAssistant:";
 
-      const prompt = `You are a helpful assistant.\nUser: ${userText}\nAssistant:`;
-      const outputs = await chatModel(prompt, {
-        max_length: 100,
-        temperature: 0.7,
-        top_p: 0.9,
-      });
+    const outputs = await chatModel(prompt,{max_length:100,temperature:0.7,top_p:0.9});
+    const reply = outputs[0].generated_text.replace(prompt,"").trim() || "Hmm, I am not sure.";
+    log(reply,"bot");
+  }
 
-      const full = outputs[0].generated_text;
-      // Strip the prompt prefix to get just the reply
-      let reply = full.substring(prompt.length).trim();
-      // In case reply is empty, fallback to some default
-      if (!reply) {
-        reply = "Hmm, I’m not sure. Can you rephrase?";
-      }
-      log(reply, "bot");
-    }
-
-    window.onload = setupModel;
-  </script>
+  window.onload = setupModel;
+</script>
 </head>
 <body>
-  <h2>Browser Assistant (SmolLM2)</h2>
-  <div id="chat"></div>
-  <input id="input" type="text" placeholder="Type here..." style="width:75%;" />
-  <button onclick="sendMessage()">Send</button>
+<h2>Mini AI Assistant (Browser Only)</h2>
+<div id="chat"></div>
+<input id="input" type="text" placeholder="Type here..." style="width:75%;">
+<button onclick="sendMessage()">Send</button>
 </body>
 </html>

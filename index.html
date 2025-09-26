@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <title>Mini AI Assistant</title>
 <style>
-  body { font-family: sans-serif; width: 600px; margin: 20px auto; }
-  #chat { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 8px; }
-  .msg { margin: 4px 0; }
-  .user { color: blue; }
-  .bot { color: green; }
-  input, button { padding: 8px; font-size: 1rem; }
+body { font-family: sans-serif; width: 600px; margin: 20px auto; }
+#chat { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 8px; }
+.msg { margin: 4px 0; }
+.user { color: blue; }
+.bot { color: green; }
+input, button { padding: 8px; font-size: 1rem; }
 </style>
 <script type="module">
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js";
 
 let chatDiv, inputEl, chatModel;
 
-function log(message, who="bot"){
+function log(message, who="bot") {
     const d = document.createElement("div");
     d.textContent = (who==="user" ? "You: " : "AI: ") + message;
     d.className = "msg " + who;
@@ -24,20 +24,22 @@ function log(message, who="bot"){
     chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
-async function setupModel(){
+async function setupModel() {
     chatDiv = document.getElementById("chat");
     inputEl = document.getElementById("input");
 
-    chatModel = await pipeline("text-generation","Xenova/distilgpt2");
+    // Tiny model that works in-browser
+    chatModel = await pipeline("text-generation", "Xenova/distilgpt2");
     log("Mini AI loaded! Type a message and press Enter or Send.");
 }
 
-async function sendMessage(){
+async function sendMessage() {
     const text = inputEl.value.trim();
     if(!text) return;
     log(text,"user");
-    inputEl.value = "";
+    inputEl.value="";
 
+    // Simple chat prompt
     const prompt = "You are a helpful assistant.\nUser: " + text + "\nAssistant:";
 
     const outputs = await chatModel(prompt,{max_length:100,temperature:0.7,top_p:0.9});
@@ -45,11 +47,8 @@ async function sendMessage(){
     log(reply,"bot");
 }
 
-// Send message on Enter key
-function handleKey(e){
-    if(e.key === "Enter"){
-        sendMessage();
-    }
+function handleKey(e) {
+    if(e.key==="Enter") sendMessage();
 }
 
 window.onload = () => {
@@ -59,9 +58,9 @@ window.onload = () => {
 </script>
 </head>
 <body>
-<h2>Mini AI Assistant (Browser Only)</h2>
+<h2>Mini AI Assistant (Single File)</h2>
 <div id="chat"></div>
-<input id="input" type="text" placeholder="Type your message here..." style="width:75%;">
+<input id="input" type="text" placeholder="Type here..." style="width:75%;">
 <button onclick="sendMessage()">Send</button>
 </body>
 </html>

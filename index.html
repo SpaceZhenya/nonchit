@@ -1,53 +1,53 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Умный генератор текста на русском</title>
-<style>
-  body { font-family: Arial; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 50px; }
-  textarea { width: 400px; height: 100px; padding: 10px; margin-bottom: 10px; }
-  input, button { padding: 8px; margin-bottom: 10px; }
-  #result { margin-top: 20px; width: 400px; min-height: 150px; background: white; padding: 10px; border-radius: 5px; white-space: pre-wrap; }
-</style>
+  <meta charset="UTF-8">
+  <title>Offline AI Assistant</title>
+  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
+    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
+    .msg { margin: 5px 0; }
+    .user { color: blue; }
+    .bot { color: green; }
+  </style>
 </head>
 <body>
+  <h2>Offline AI Assistant 🤖</h2>
+  <div id="chat"></div>
+  <input id="input" type="text" placeholder="Say something..." style="width:80%;">
+  <button onclick="send()">Send</button>
 
-<h1>Умный генератор текста на русском</h1>
-<textarea id="prompt" placeholder="Введите начало текста..."></textarea>
-<br>
-<label>Макс. длина слов: <input type="number" id="max_length" value="150"></label>
-<br>
-<label>Креативность (0.1–1.0): <input type="number" id="temperature" step="0.1" value="0.8"></label>
-<br>
-<button onclick="generateText()">Сгенерировать</button>
+  <script>
+    let chat = document.getElementById("chat");
+    let input = document.getElementById("input");
 
-<div id="result">Результат появится здесь...</div>
+    async function loadModel() {
+      window.model = await window.transformers.pipeline(
+        "text-generation",
+        "Xenova/distilgpt2"
+      );
+      log("AI ready! Type something.");
+    }
 
-<script>
-async function generateText() {
-  const prompt = document.getElementById('prompt').value;
-  const maxLength = parseInt(document.getElementById('max_length').value);
-  const temperature = parseFloat(document.getElementById('temperature').value);
+    function log(text, who="bot") {
+      let div = document.createElement("div");
+      div.className = "msg " + who;
+      div.textContent = (who==="user" ? "You: " : "AI: ") + text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
 
-  if (!prompt) return;
+    async function send() {
+      let text = input.value;
+      if (!text) return;
+      log(text, "user");
+      input.value = "";
+      let output = await window.model(text, { max_length: 50, temperature: 0.7 });
+      log(output[0].generated_text, "bot");
+    }
 
-  const resultDiv = document.getElementById('result');
-  resultDiv.innerText = "Генерируем...";
-
-  try {
-    const response = await fetch("http://localhost:8000/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: prompt, max_length: maxLength, temperature: temperature })
-    });
-    const data = await response.json();
-    resultDiv.innerText = data.generated_text;
-  } catch (error) {
-    console.error(error);
-    resultDiv.innerText = "Ошибка при генерации текста.";
-  }
-}
-</script>
-
+    loadModel();
+  </script>
 </body>
 </html>

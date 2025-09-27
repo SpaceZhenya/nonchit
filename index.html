@@ -6,82 +6,150 @@
   <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f0f0;
-      padding: 40px;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #e5ddd5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
-    #chat {
-      max-width: 600px;
-      margin: auto;
-      background: white;
-      padding: 20px;
+    .chat-container {
+      width: 400px;
+      height: 600px;
+      background: #fff;
       border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
-    #messages {
-      height: 300px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
+    .chat-header {
+      background: #0078d7;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .chat-messages {
+      flex: 1;
       padding: 10px;
-      margin-bottom: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .message {
+      max-width: 80%;
+      padding: 10px 15px;
+      border-radius: 20px;
+      position: relative;
+      font-size: 14px;
+      line-height: 1.4;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    .user {
+      align-self: flex-end;
+      background: #dcf8c6;
+    }
+    .bot {
+      align-self: flex-start;
+      background: #f1f0f0;
+    }
+    .typing {
+      font-style: italic;
+      color: #888;
+      font-size: 13px;
+      margin-left: 10px;
+    }
+    .chat-input {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+      background: #f9f9f9;
     }
     textarea {
-      width: 100%;
-      height: 60px;
+      flex: 1;
       resize: none;
       padding: 10px;
-      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 14px;
     }
     button {
-      width: 100%;
-      padding: 10px;
+      margin-left: 10px;
+      padding: 10px 20px;
       background: #0078d7;
       color: white;
       border: none;
-      border-radius: 5px;
-      font-size: 16px;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+    #loading {
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+      color: #555;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-  <div id="chat">
-    <h2>ИИ-чат в браузере</h2>
-    <div id="messages"></div>
-    <textarea id="input" placeholder="Введите сообщение..."></textarea>
-    <button onclick="sendMessage()">Отправить</button>
+  <div class="chat-container">
+    <div class="chat-header">ИИ-чат</div>
+    <div class="chat-messages" id="chat">
+      <div id="loading">Загрузка модели...</div>
+    </div>
+    <div class="chat-input">
+      <textarea id="input" placeholder="Введите сообщение..."></textarea>
+      <button onclick="sendMessage()">➤</button>
+    </div>
   </div>
 
   <script>
     let messages = [];
-    const chatBox = document.getElementById("messages");
+    let model;
+    const chatBox = document.getElementById("chat");
     const input = document.getElementById("input");
+    const loading = document.getElementById("loading");
+
+    async function loadModel() {
+      model = await window.Transformers.load("Xenova/phi-1_5");
+      loading.remove();
+      appendMessage("bot", "Привет! Я готов отвечать на твои вопросы.");
+    }
+
+    loadModel();
 
     async function sendMessage() {
       const userText = input.value.trim();
-      if (!userText) return;
+      if (!userText || !model) return;
       input.value = "";
 
       messages.push({ role: "user", content: userText });
-      appendMessage("Вы", userText);
-      appendMessage("ИИ", "Генерация ответа...");
+      appendMessage("user", userText);
+      const typing = document.createElement("div");
+      typing.className = "typing";
+      typing.textContent = "ИИ печатает...";
+      chatBox.appendChild(typing);
+      chatBox.scrollTop = chatBox.scrollHeight;
 
-      const model = await window.Transformers.load("Xenova/phi-1_5");
       const response = await model.chat(messages);
       messages.push({ role: "assistant", content: response.generated_text });
 
-      updateLastMessage(response.generated_text);
+      typing.remove();
+      appendMessage("bot", response.generated_text);
     }
 
     function appendMessage(sender, text) {
       const div = document.createElement("div");
-      div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      div.className = `message ${sender}`;
+      div.textContent = text;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function updateLastMessage(text) {
-      const last = chatBox.lastChild;
-      last.innerHTML = `<strong>ИИ:</strong> ${text}`;
     }
   </script>
 </body>

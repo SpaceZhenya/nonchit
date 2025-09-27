@@ -2,19 +2,44 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Умный Веб-ИИ</title>
+  <title>Умный Веб-ИИ с обработкой ошибок</title>
   <style>
-    /* стили как раньше */
-    body{margin:0;padding:0;height:100vh;display:flex;justify-content:center;align-items:center;background:#eef2f5;font-family:Arial}
-    .chat-container{width:360px;max-width:90vw;height:600px;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);display:flex;flex-direction:column;overflow:hidden}
-    .chat-box{flex:1;padding:12px;overflow-y:auto;font-size:14px;line-height:1.4}
-    .message{margin:8px 0;padding:8px 12px;border-radius:16px;max-width:80%;word-wrap:break-word}
-    .message.user{align-self:flex-end;background:#dcf8c6}
-    .message.assistant{align-self:flex-start;background:#f1f0f0}
-    .input-group{display:flex;border-top:1px solid #ddd}
-    #user-input{flex:1;border:none;padding:12px;font-size:14px;outline:none}
-    #send-btn{border:none;background:#4caf50;color:#fff;padding:0 16px;cursor:pointer;font-size:14px}
-    #send-btn:disabled{background:#9ccc9c;cursor:default}
+    body {
+      margin: 0; padding: 0; height: 100vh;
+      display: flex; justify-content: center; align-items: center;
+      background: #eef2f5; font-family: Arial, sans-serif;
+    }
+    .chat-container {
+      width: 360px; max-width: 90vw; height: 600px;
+      background: #fff; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .chat-box {
+      flex: 1; padding: 12px; overflow-y: auto;
+      font-size: 14px; line-height: 1.4;
+    }
+    .message {
+      margin: 8px 0; padding: 8px 12px;
+      border-radius: 16px; max-width: 80%; word-wrap: break-word;
+    }
+    .message.user { align-self: flex-end; background: #dcf8c6; }
+    .message.assistant { align-self: flex-start; background: #f1f0f0; }
+    .input-group { display: flex; border-top: 1px solid #ddd; }
+    #user-input {
+      flex: 1; border: none; padding: 12px; font-size: 14px;
+      outline: none;
+    }
+    #send-btn {
+      border: none; background: #4caf50; color: #fff;
+      padding: 0 16px; cursor: pointer; font-size: 14px;
+    }
+    #send-btn:disabled {
+      background: #9ccc9c; cursor: default;
+    }
+    .error {
+      color: #c00; font-size: 13px; margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -24,18 +49,24 @@
       <input id="user-input" type="text" placeholder="Напишите сообщение…" />
       <button id="send-btn">Отправить</button>
     </div>
+    <div id="error-msg" class="error"></div>
   </div>
 
   <script>
-    const HF_TOKEN = "hf_yourTokenHere";           // ← вставь свой HF-токен
-    const HF_MODEL = "google/flan-t5-small";       // ← более умная модель
+    // 1) Вставьте сюда свой токен Hugging Face Inference API
+    const HF_TOKEN = "hf_yourTokenHere";
+
+    // 2) Инструктивная модель — Falcon-instruct быстрее отвечает и гораздо умнее gpt2
+    const HF_MODEL = "tiiuae/falcon-7b-instruct";
 
     const chatBox   = document.getElementById("chat-box");
     const userInput = document.getElementById("user-input");
     const sendBtn   = document.getElementById("send-btn");
+    const errorMsg  = document.getElementById("error-msg");
 
+    // Храним историю в формате строчек
     let history = [
-      { role: "system", content: "Ты — умный, вежливый и краткий ассистент." }
+      "System: Ты — вежливый и краткий ассистент."
     ];
 
     function appendMessage(text, role) {
@@ -47,6 +78,7 @@
     }
 
     async function sendMessage() {
+      errorMsg.textContent = "";
       const userText = userInput.value.trim();
       if (!userText) return;
 
@@ -54,43 +86,49 @@
       userInput.value = "";
       sendBtn.disabled = true;
 
-      history.push({ role: "user", content: userText });
+      history.push(`User: ${userText}`);
+      const prompt = history.join("\n") + "\nAssistant:";
 
-      // Формируем вход для HF API
-      // Flan-T5 — seq2seq, поэтому передаём просто массив сообщений
-      const payload = {
-        inputs: history.map(m =>
-          (m.role === "system" ? "**System:** " :
-           m.role === "user"   ? "**User:** " :
-                                 "**Assistant:** ") + m.content
-        ).join("\n") + "\n**Assistant:**",
-        parameters: {
-          max_new_tokens: 64,
-          temperature: 0.2,
-          top_p: 0.9
-        }
-      };
-
-      const res = await fetch(
-        `https://api-inference.huggingface.co/models/${HF_MODEL}`, {
+      try {
+        const res = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, {
           method: "POST",
           headers: {
             "Authorization": "Bearer " + HF_TOKEN,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            inputs: prompt,
+            parameters: {
+              max_new_tokens: 80,
+              temperature: 0.2,
+              top_p: 0.9,
+              return_full_text: false
+            }
+          })
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          // Выводим реальную ошибку от HF
+          throw new Error(json.error || JSON.stringify(json));
         }
-      );
 
-      const json = await res.json();
-      const botText = (json.generated_text || json[0]?.generated_text || "").trim() ||
-                      "Упс, что-то пошло не так.";
+        // Парсим ответ
+        const botText = (json.generated_text || json[0]?.generated_text || "").trim();
+        if (!botText) throw new Error("Пустой ответ от модели");
 
-      appendMessage(botText, "assistant");
-      history.push({ role: "assistant", content: botText });
-
-      sendBtn.disabled = false;
-      userInput.focus();
+        appendMessage(botText, "assistant");
+        history.push(`Assistant: ${botText}`);
+      }
+      catch (e) {
+        console.error("HF API error:", e);
+        errorMsg.textContent = "Ошибка: " + e.message;
+      }
+      finally {
+        sendBtn.disabled = false;
+        userInput.focus();
+      }
     }
 
     sendBtn.addEventListener("click", sendMessage);
